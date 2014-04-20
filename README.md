@@ -1,5 +1,3 @@
-= Our Software =
-
 This library provides a set of modules to do a few things: packet-based Bluetooth communications, including framing using generic octet stuffing and checksum calculations; definition of DataSource and DataSinks which can be used to channel data (for example from Bluetooth-based DataSource to a DataSink. Currently, a single DataSink is implemented: it is a frequency modulator, using the incoming data as the envelope. This can be used to turn, for example, ECG into sound (or tactile vibration).
 
 Java documentation for all the software is maintained in JavaDoc under [[source:software/android/heartFelt/doc]]. View it in a browser locally if you've checked out the source.
@@ -12,9 +10,9 @@ I have taken this directly from the SVN, and so a lot of the links will be broke
 
 If this is useful to anyone, then pull requests for fixing it up would be very much appreciated indeed.
 
+This library is released under LGPLv3.
 
 Author: rmuil@uos.de
-
 
 === Tactile Output ===
 
