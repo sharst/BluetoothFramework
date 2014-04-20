@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:orientation="vertical"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	>
+	<LinearLayout
+		android:orientation="vertical"
+		android:layout_gravity="top"
+		android:layout_width="match_parent"
+		android:layout_height="0dip"
+		android:layout_weight="1.0"
+		android:background="@drawable/border">
+		<TextView
+			android:id="@+id/pastEventsTitle"
+			android:text="@string/past_events_title"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content">
+		</TextView>
+		<!-- <TextView android:id="@+id/textView1"
+			android:padding="2dp"
+			android:textAppearance="?android:attr/textAppearanceSmall"
+			android:text="@string/event_name"
+			android:layout_height="wrap_content" android:layout_width="wrap_content"></TextView>-->
+		<ListView android:id="@+id/pastEventsList"
+			android:layout_height="match_parent"
+			android:layout_width="match_parent"
+			android:stackFromBottom="true"
+			android:transcriptMode="normal" android:choiceMode="multipleChoice">
+		    <!-- Preview: listitem=@android:layout/simple_list_item_1 -->
+		</ListView>
+	</LinearLayout>
+	<include layout="@layout/event_input"/>
+	<RelativeLayout
+		android:id="@+id/linearLayout1"
+		android:orientation="vertical"
+		android:paddingTop="5dp"
+		android:layout_width="match_parent" 
+		android:layout_height="wrap_content"
+		android:background="@drawable/border">
+		<TextView
+			android:id="@+id/upcomingEventsTitle"
+			android:text="@string/upcoming_events_title"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			>
+		</TextView>
+		<Button
+			android:id="@+id/BtnSetEventSequence"
+			android:layout_alignParentRight="true"
+			android:text="@string/set_event_sequence"
+						android:layout_below="@id/upcomingEventsTitle"
+			
+			android:layout_gravity="right"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			>
+		</Button>
+		<CheckBox
+			android:id="@+id/autoAdvanceCheckBox"
+			android:text="@string/auto_advance"
+			android:layout_alignParentRight="true"
+			android:layout_above="@id/BtnSetEventSequence"
+			android:layout_below="@id/upcomingEventsTitle"
+			android:layout_height="wrap_content"
+			android:layout_width="wrap_content"
+			android:textSize="14sp"
+			android:checked="true"
+			android:visibility="gone">
+			<!-- TODO: http://www.anddev.org/tutorial_change_look_of_checkbox-t4553.html -->
+		</CheckBox>
+		<LinearLayout 
+			android:id="@+id/upcomingEventsWheelViewBackground"
+		    android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:background="@color/grey_background"
+			android:layout_below="@id/upcomingEventsTitle"
+			android:layout_toLeftOf="@id/BtnSetEventSequence"
+			>
+		<kankan.wheel.widget.WheelView
+			android:id="@+id/upcomingEventsWheelView"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content">
+		</kankan.wheel.widget.WheelView>
+		</LinearLayout>
+		
+		
+	</RelativeLayout>
+</LinearLayout>

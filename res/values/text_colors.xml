@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<color name="text_default">#DEDEDE</color> <!-- system default. -->
+	<color name="text_clickable">#AEFFAE</color>
+	<color name="text_disabled">#4E4E4E</color>
+	<color name="text_selected">#FFFFFF</color>
+</resources>

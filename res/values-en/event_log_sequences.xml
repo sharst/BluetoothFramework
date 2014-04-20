@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="event_sequence_lying_to_standing">
+		<item>stood up</item>
+	    <item>lay down</item>
+	    <item >hand stand</item>
+	</string-array>
+	<string-array name="event_sequence_bending_double">
+	    <item>stood up</item>
+	    <item>bent forward to knees</item>
+	</string-array>
+	<string-array name="event_sequence_standard">
+	    <item>started jogging</item>
+	    <item>finished jogging</item>
+	    <item>started cycling</item>
+	    <item>finished cycling</item>
+	    <item>went to sleep</item>
+	    <item>woke up</item>
+	    <item>got a fright</item>
+	    <item>nervous</item>
+	    <item>relaxed</item>
+	</string-array>
+	<string-array name="event_sequence_experiment_introspective_awareness">
+		<item>sitting comfortably</item>
+		<item>started counting</item>
+		<item>finished counting</item>
+		<item>final count was…</item>
+	</string-array>
+</resources>

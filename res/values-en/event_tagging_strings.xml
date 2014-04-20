@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string
+		name="past_events_title">Past Events</string>
+	<string
+		name="upcoming_events_title">Upcoming Events</string>
+	<string
+		name="possible_events_title">Possible Events</string>
+	<string
+		name="next_event_title">Next Event</string>
+	<string
+		name="log_event_button">\nCapture Time\n</string>
+	<string
+		name="log_event_button2">Submit Log</string>
+	<string
+		name="cancel_log_event_button">Cancel</string>
+	<string
+		name="set_event_sequence">Set Sequence…</string>
+	<string
+		name="event_tag_name_empty_error">Please enter a name for the event…</string>
+	<string
+		name="log_event_instructions_1">Hit button when event occurs…</string>
+	<string
+		name="log_event_instructions_2">…now ensure the name and description are right.</string>
+	<string
+		name="auto_advance">Auto Advance</string>
+</resources>

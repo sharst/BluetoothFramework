@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<color name="log_instructions_1">#88CC44</color>
+	<color name="log_instructions_2">#CC8844</color>
+	<color name="grey_background">#C0F0FFE0</color>
+</resources>
