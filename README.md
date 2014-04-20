@@ -1,3 +1,4 @@
+# SenhanceLib #
 This library provides a set of modules to do a few things: packet-based Bluetooth communications, including framing using generic octet stuffing and checksum calculations; definition of DataSource and DataSinks which can be used to channel data (for example from Bluetooth-based DataSource to a DataSink. Currently, a single DataSink is implemented: it is a frequency modulator, using the incoming data as the envelope. This can be used to turn, for example, ECG into sound (or tactile vibration).
 
 The source is the only reference guaranteed to be up-to-date, but the JavaDoc can help to understand, and the diagrams in the main folder give a decent conceptual overview even if they are sometimes somewhat out of date.
@@ -12,10 +13,9 @@ This library is released under LGPLv3.
 
 Author: rmuil@uos.de
 
-# SenhanceLib #
+## Overview ##
 
 ||[[Image(source:software/android/SenhanceLib/DataSourceSink.png, 800px, align=left)]]||
-
 
 This includes common code that will be used by all or many of the software projects under the Senhance (''previously VIPSE'') project, including heartFelt. At the moment, the only other software package is the `CompassSimulator` which is used to control the ISEP belt over an RFCOMM bluetooth connection by simulating the GX1 compass.
 
@@ -64,7 +64,7 @@ The client can connect to the other device via BluetoothPacketConnection or Fram
 
 [[Image(source:software/android/SenhanceLib/PacketConnectionStates.png, 800px)]]
 
-# Tactile Output #
+## Tactile Output ##
 
 [[Image(source:software/android/heartFelt/HeartOut_FM.svg, 500px, align=right)]]
 
@@ -88,4 +88,3 @@ Here is an example of the heartrate output of the DummyECG implementing this mod
 ||[[Image(source:software/android/SenhanceLib/CardiacTransientResponseExample-v0.1.svg, 800px)]]||
 ||'''u_length''': 1500msecs ||
 ||'''transition_rate''': 10 bpm/sec ||
-
