@@ -36,19 +36,35 @@ public class FramedPacketConnection extends BluetoothPacketConnection{
 	 * @param startByte the byte designating the start of a packet
 	 * @param endByte the byte designing the end of the packet (must not appear in the data)
 	 * @param escapeByte indicates that following character must be treated separately (e.g. octet stuffing)
-	 *
+	 * @param connectRetries The amount of times that attemps to (re)connect should be made
+	 * @param timeBetweenConnectionAttemps The time between two connection attemps (in ms)
 	 */
 	public FramedPacketConnection (String address, PacketConnectionHandler connHandler, int maxPacketSize, 
-			int octetStuffByte, int startByte, int endByte, int escapeByte) {
-		super(address, connHandler, maxPacketSize);
+			int octetStuffByte, int startByte, int endByte, int escapeByte, int connectRetries, int timeBetweenConnectionAttemps) {
+		super(address, connHandler, maxPacketSize, connectRetries, timeBetweenConnectionAttemps);
 		mOctetStuffByte = octetStuffByte;
 		mStartByte = startByte;
 		mEndByte = endByte;
 		mEscapeByte = escapeByte;
 	}
+	
+	public FramedPacketConnection (String address, PacketConnectionHandler connHandler, int maxPacketSize, 
+			int octetStuffByte, int startByte, int endByte, int escapeByte) {
+		super(address, connHandler, maxPacketSize, 3, 1000);
+		mOctetStuffByte = octetStuffByte;
+		mStartByte = startByte;
+		mEndByte = endByte;
+		mEscapeByte = escapeByte;
+	}
+	
 	public FramedPacketConnection (String address, PacketConnectionHandler connHandler, int maxPacketSize, int octetStuffByte) {
 		this(address, connHandler, maxPacketSize, octetStuffByte, DefStartByte, DefEndByte, DefEscapeByte);
 	}
+	
+	public FramedPacketConnection (String address, PacketConnectionHandler connHandler, int maxPacketSize, int connectRetries, int timeBetweenConnectionAttemps) {
+		this(address, connHandler, maxPacketSize, DefOctetStuffByte, DefStartByte, DefEndByte, DefEscapeByte, connectRetries, timeBetweenConnectionAttemps);
+	}
+	
 	public FramedPacketConnection (String address, PacketConnectionHandler connHandler, int maxPacketSize) {
 		this(address, connHandler, maxPacketSize, DefOctetStuffByte, DefStartByte, DefEndByte, DefEscapeByte);
 	}
@@ -120,10 +136,11 @@ public class FramedPacketConnection extends BluetoothPacketConnection{
 			
 			if (mState == State.PacketReceived){
 				Packet receivedPacket = mPacket;
+				mConnHandler.packetReceived(receivedPacket);
 				mPacket = new Packet();
 				changeState(State.Ready);
 				
-				mConnHandler.packetReceived(receivedPacket);
+				
 			}
 		} catch (ArrayIndexOutOfBoundsException e) {
 			Log.e(TAG, "Packet arrived that was bigger than FramedPacketConnection buffer. Discarded.");
