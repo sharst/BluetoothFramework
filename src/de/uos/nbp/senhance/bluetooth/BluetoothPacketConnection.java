@@ -2,14 +2,8 @@ package de.uos.nbp.senhance.bluetooth;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Iterator;
 import java.util.UUID;
 
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.content.DialogInterface;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
