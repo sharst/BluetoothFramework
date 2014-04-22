@@ -311,8 +311,10 @@ public class BluetoothService {
 
 			String message = "";
 			boolean connected = false;
-			while (!mConnectionDeliberatelyClosed
-					&& (contiguousConnectionFailures < mMaxContiguousConnectionFailures)) {
+			// As long as the connection hasn't been deliberately closed, we should try reconnects
+			// (that is, if the number of max connects isn't reached)
+			while ((!mConnectionDeliberatelyClosed) 
+					&& ((mMaxContiguousConnectionFailures==-1) || (contiguousConnectionFailures < mMaxContiguousConnectionFailures)) ) {
 				//Here every time a socket is created, because for some reason, when first the target is
 				//unavailable and then available socket.connect hangs (at least for 2.3.3) 
 				try {
