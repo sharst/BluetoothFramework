@@ -2,6 +2,8 @@ package de.uos.nbp.senhance.bluetooth;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.UUID;
 
 import de.uos.nbp.Utils;
@@ -60,8 +62,8 @@ public interface PacketConnection {
 	 * @author rmuil@UoS.de
 	 * November 24, 2011
 	 */
-	//TODO: In BTPacket wurde bei jedem Zugriff auf payload geprüft, ob es null war und in
-	//in diesem Fall zurückgegeben. Auch hier für mData (das jetzige payload) notwendig? 
+	//TODO: In BTPacket wurde bei jedem Zugriff auf payload geprueft, ob es null war und in
+	//in diesem Fall zurueckgegeben. Auch hier fuer mData (das jetzige payload) notwendig? 
 	//Wann kann dieser Fall auftreten?
 	public class Packet {
 		/** only affects the getter functions. */
@@ -96,9 +98,13 @@ public interface PacketConnection {
 			mData = new byte [size];
 			mLittleEndian = littleEndian;
 		}
+		
 		public Packet (int size) {
 			this(size, true);
 		}
+		
+		
+		
 		Packet () {
 			this(DefMaxPacketSize, true);
 		}
@@ -128,6 +134,17 @@ public interface PacketConnection {
 			mData = data;
 			mPosition = data.length;
 			mLittleEndian = true;
+		}
+		
+		public Packet(int[] data) {
+			// Allocate space for (length) ints of 4 bytes each
+			this(data.length * 4);
+			putIntArray(data, 0);
+		}
+		
+		public Packet(float[] data) {
+			this(4*data.length);
+			putFloatArray(data, 0);
 		}
 		
 		public int getDataLength() {
@@ -349,6 +366,113 @@ public interface PacketConnection {
 			}
 			if (mPosition < (pos+count))
 				mPosition = pos+count;
+		}
+		
+		public void putIntArray(int[] values, int pos) {
+			for (int i=0; i<values.length; i++) {
+				putInt(values[i], i*4);
+			}
+		}
+		
+		/**
+		 * Puts an array of floats into the buffer, starting at position pos
+		 * @param values
+		 * @param pos
+		 */
+		public void putFloatArray(float[] values, int pos) {
+			for (int i=0; i<values.length; i++) {
+				putFloat(values[i], i*4);
+			}
+		}
+		
+		/**
+		 * Puts a single float of 4 bytes into the buffer
+		 * @param value
+		 * @param pos
+		 */
+		public void putFloat(float value, int pos) {
+			ByteBuffer bb = ByteBuffer.allocate(4);
+			if (mLittleEndian) bb.order(ByteOrder.LITTLE_ENDIAN);
+			else bb.order(ByteOrder.BIG_ENDIAN);
+			bb.putFloat(value);
+			
+			for (byte b: bb.array()) {
+				mData[pos++] = b;
+			}
+			
+			if (mPosition < pos) mPosition = pos;
+		
+		}
+		
+		/**
+		 * Reads the bytes between start- end endPos and decodes them into ints
+		 * @param startPos
+		 * @param endPos
+		 * @return An array of decoded ints
+		 */
+		public int[] getIntArray(int startPos, int endPos) {
+			if (endPos<startPos) {
+				throw new RuntimeException("endPos needs to be larger than startPos!");
+			} else if (((endPos-startPos)%4) != 0) {
+				throw new RuntimeException("The specified range does not contain a valid number of bytes");
+			} else {
+				int[] out = new int[(endPos-startPos)/4];
+				for (int i = 0; i<out.length; i++) {
+					out[i] = getInt(startPos+i*4);
+				}
+				return out;
+			}
+		}
+		
+		
+		/**
+		 * Reads all the bytes in this package and converts them into ints
+		 * @return An array of decoded ints
+		 */
+		public int[] getIntArray() {
+			return getIntArray(0, mPosition);
+		}
+		
+		
+		/**
+		 * Reads the bytes between start- end endPos and decodes them into floats
+		 * @param startPos
+		 * @param endPos
+		 * @return An array of decoded floats
+		 */
+		public float[] getFloatArray(int startPos, int endPos) {
+			if (endPos<startPos) {
+				throw new RuntimeException("endPos needs to be larger than startPos!");
+			} else if (((endPos-startPos)%4) != 0) {
+				throw new RuntimeException("The specified range does not contain a valid number of bytes");
+			} else {
+				float[] out = new float[(endPos-startPos)/4];
+				for (int i = 0; i<out.length; i++) {
+					out[i] = getFloat(startPos+i*4);
+				}
+				return out;
+			}
+		}
+		
+		/**
+		 * Reads all the bytes in this package and converts them into floats
+		 * @return An array of decoded floats
+		 */
+		public float[] getFloatArray() {
+			return getFloatArray(0, mPosition);
+		}
+		
+		/**
+		 * Decodes 4 bytes starting at position pos into a float
+		 * @param pos
+		 * @return
+		 */
+		public float getFloat(int pos) {
+			ByteBuffer bb = ByteBuffer.allocate(mData.length);
+			if (mLittleEndian) bb.order(ByteOrder.LITTLE_ENDIAN);
+			else bb.order(ByteOrder.BIG_ENDIAN);
+			bb.put(mData);
+			return bb.getFloat(pos);
 		}
 		
 		 /**

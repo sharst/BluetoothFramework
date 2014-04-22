@@ -142,8 +142,10 @@ public class DeviceListActivity extends Activity {
 		if (pairedDevices.size() > 0) {
 			for (BluetoothDevice device : pairedDevices) {
 				/* is name the best way to identify this? */
-				if ((deviceNameFilter != null)
-						&& device.getName().matches(deviceNameFilter)) {
+				if ((deviceNameFilter != null) && (device.getName().matches(deviceNameFilter))) {
+						pairedECGDevices.add(device);
+				// If there is no filter, add all devices
+				} else if (deviceNameFilter == null) {
 					pairedECGDevices.add(device);
 				}
 			}

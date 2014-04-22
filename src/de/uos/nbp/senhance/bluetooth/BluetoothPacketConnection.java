@@ -2,8 +2,14 @@ package de.uos.nbp.senhance.bluetooth;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Iterator;
 import java.util.UUID;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.DialogInterface;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
@@ -20,16 +26,26 @@ public class BluetoothPacketConnection extends Handler implements PacketConnecti
 	protected String mAddress;
 	protected BluetoothService mBluetoothService;
 
+	/**
+	 * Creates a new bluetooth connection
+	 * @param address The address of the device to connect to 
+	 * @param connHandler A handler used to communicate status info
+	 * @param maxPacketSize The maximum size of packets to be sent over this connection
+	 * @param connectRetries The amount of times that attemps to (re)connect should be made
+	 * @param timeBetweenConnectionAttemps The time between two connection attemps (in ms)
+	 */
 	public BluetoothPacketConnection(String address,
-			PacketConnectionHandler connHandler, int maxPacketSize) {
+			PacketConnectionHandler connHandler, int maxPacketSize, int connectRetries, int timeBetweenConnectionAttemps) {
 		if (D) Log.v(TAG, "BluetoothConnection()");
 		mConnHandler = connHandler;
 		mMaxPacketSize = maxPacketSize;
 		mAddress = address;
-		
 		mBluetoothService = new BluetoothService(this); /* TODO: rmuil: this looks bad to me, like could be a memory leak. */
 		mState = State.Disconnected;
+		mBluetoothService.setMaxContiguousConnectionFailures(connectRetries);
+		mBluetoothService.setConnectionAttemptInterval(timeBetweenConnectionAttemps);
 	}
+	
 
 	/**
 	 * This uses a workaround for the failure of 
@@ -51,6 +67,7 @@ public class BluetoothPacketConnection extends Handler implements PacketConnecti
 	public void connect(int port) {
 		mBluetoothService.connect(mAddress, port);
 	}
+	
 
 	/**
 	 * Connects to the default RFCOMM channel (1).
@@ -68,7 +85,7 @@ public class BluetoothPacketConnection extends Handler implements PacketConnecti
 	}
 
 	/**
-	 * TODO: Wird diese Fkt. noch gebraucht?
+	 * TODO: Is this function still needed?
 	 * 
 	 * This creates a socket the normal way - using a UUID record.
 	 * It does not work on the HTC Desire. Use {@link connect(int)} in
@@ -154,12 +171,15 @@ public class BluetoothPacketConnection extends Handler implements PacketConnecti
 				break;
 			case BluetoothService.CONNECTION_LOST:
 				mConnHandler.connectionLost(msg.getData().getString(BluetoothService.MESSAGE));
+				changeState(State.Disconnected);
 				break;
 			case BluetoothService.CONNECT_ATTEMPT_FAILED:
 				mConnHandler.connectAttemptFailed(msg.getData().getString(BluetoothService.MESSAGE));
+				changeState(State.Disconnected);
 				break;
 			case BluetoothService.CONNECTION_CLOSED:
 				mConnHandler.connectionClosed();
+				changeState(State.Disconnected);
 				break;
 			case BluetoothService.MESSAGE_STATE_CHANGE:
 	//			Context context1 = getApplicationContext();
@@ -183,6 +203,7 @@ public class BluetoothPacketConnection extends Handler implements PacketConnecti
 	private void handleConnectFailed(Message msg) {
 		String message = msg.getData().getString(BluetoothService.MESSAGE);
 		Log.w(TAG, "BluetoothConnection|socket.connect() failed: "+message);
+		changeState(State.Disconnected);
 		mConnHandler.connectFailed(message);
 	}
 
@@ -210,7 +231,11 @@ public class BluetoothPacketConnection extends Handler implements PacketConnecti
 	@Override
 	public void send(Packet pkt) throws IOException {
 		if (D) Log.v(TAG, "BluetoothPacketConnection.send()");
-		mBluetoothService.write(pkt.getData());
+		if ((mState!=State.Disconnected) && (mState != State.Dead)) {
+			mBluetoothService.write(pkt.getData());
+		} else {
+			throw new IOException("BluetoothConnection is not active at the moment!");
+		}
 	}
 
 }
