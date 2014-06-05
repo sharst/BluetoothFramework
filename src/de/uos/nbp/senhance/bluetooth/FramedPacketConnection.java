@@ -22,7 +22,7 @@ import de.uos.nbp.Utils;
  * @author rmuil
  * November 18, 2011
  */
-public class FramedPacketConnection extends BluetoothPacketConnection{
+public class FramedPacketConnection extends BluetoothPacketConnection {
 	private final int mStartByte;
 	private final int mEndByte;
 	private final int mEscapeByte;
@@ -97,7 +97,7 @@ public class FramedPacketConnection extends BluetoothPacketConnection{
 		//an 'int' and varies from 0 to 255. 'byte' is signed
 		//and varies from -128 to 127.
 		
-		try {
+//		try {
 			if (D) Log.v(TAG, "FramedPacketConnection|read(): "+Integer.toHexString(nextByte));
 			switch (mState) {
 			case Ready:
@@ -116,12 +116,12 @@ public class FramedPacketConnection extends BluetoothPacketConnection{
 					changeState(State.PacketReceived);
 					if (D) {
 						Log.d(TAG, "FramedPacketConnection|got packet of length "
-								+Integer.toString(mPacket.getDataLength()));
-						Log.v(TAG, " -> [" + Utils.ByteArrayToHexa(mPacket.mData, 0, mPacket.getDataLength()) + "]");
+								+Integer.toString(mPacket.getDataPosition()));
+						Log.v(TAG, " -> [" + Utils.ByteArrayToHexa(mPacket.mData, 0, mPacket.getDataPosition()) + "]");
 					}
 					
 				} else {
-					mPacket.putByte(nextByte);
+					mPacket.appendByte(nextByte);
 				}
 				break;
 			case EscapeSequence:
@@ -129,23 +129,24 @@ public class FramedPacketConnection extends BluetoothPacketConnection{
 					/* Apply octet unstuffing */
 					nextByte ^= mOctetStuffByte;
 				}
-				mPacket.putByte(nextByte);
+				mPacket.appendByte(nextByte);
 				changeState(State.Incoming);
 				break;
 			}
 			
 			if (mState == State.PacketReceived){
 				Packet receivedPacket = mPacket;
+				receivedPacket.mPosition = 0;
 				mConnHandler.packetReceived(receivedPacket);
 				mPacket = new Packet();
 				changeState(State.Ready);
 				
 				
 			}
-		} catch (ArrayIndexOutOfBoundsException e) {
-			Log.e(TAG, "Packet arrived that was bigger than FramedPacketConnection buffer. Discarded.");
-			discard();
-		}
+//		} catch (ArrayIndexOutOfBoundsException e) {
+//			Log.e(TAG, "Packet arrived that was bigger than FramedPacketConnection buffer. Discarded.");
+//			discard();
+//		}
 	}
 	
 	/**
@@ -163,31 +164,18 @@ public class FramedPacketConnection extends BluetoothPacketConnection{
 		
 		if (D) Log.v(TAG, "FramedPacketConnection.send()");
 		out.write(mStartByte);
-		int lastWriteIdx = -1;
 		/* search for bytes requiring escaping... */
-		for (int idx = 0; idx < pkt.mPosition; idx++) {
+		for (int idx = 0; idx < pkt.mData.length; idx++) {
 			if (needsEscaping(pkt.mData[idx])) {
-
-				/* if a chunk of data precedes this, send it first */
-				if (lastWriteIdx < (idx-1)) {
-					lastWriteIdx++;
-					out.write(pkt.mData, lastWriteIdx, idx - lastWriteIdx);
-				}
-				/* then send the escape flag... */
 				out.write(mEscapeByte);
 				int escapedByte = pkt.mData[idx];
 				if (mOctetStuffByte != -1)
 					escapedByte ^= mOctetStuffByte;
 				/*... followed by the massaged data */
 				out.write(escapedByte);
-				lastWriteIdx = idx;
+			} else {
+				out.write(pkt.mData[idx]);
 			}
-		}
-		
-		/* send any remaining data */
-		if (lastWriteIdx < pkt.mPosition) {
-			lastWriteIdx++;
-			out.write(pkt.mData, lastWriteIdx, pkt.mPosition - lastWriteIdx);
 		}
 		
 		/* finally, send the end byte */

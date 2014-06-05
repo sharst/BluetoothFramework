@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.UUID;
 
 import de.uos.nbp.Utils;
@@ -16,7 +17,10 @@ import de.uos.nbp.Utils;
  *
  * NB: This contains the Packet class, which includes the buffer implementation.
  * It may be more efficient to implement the buffers in the connection class instead.
- *
+ * 
+ * TODO: Maybe it makes more sense to store mData as an ArrayList<Byte>. This handles
+ * the dynamic resizing of the data array for us. 
+ * 
  *{@link https://ikw.uni-osnabrueck.de/trac/heartFelt/wiki/Software/Android}
  *
  * @author rmuil@UoS.de
@@ -62,9 +66,7 @@ public interface PacketConnection {
 	 * @author rmuil@UoS.de
 	 * November 24, 2011
 	 */
-	//TODO: In BTPacket wurde bei jedem Zugriff auf payload geprueft, ob es null war und in
-	//in diesem Fall zurueckgegeben. Auch hier fuer mData (das jetzige payload) notwendig? 
-	//Wann kann dieser Fall auftreten?
+	
 	public class Packet {
 		/** only affects the getter functions. */
 		final boolean mLittleEndian;
@@ -89,13 +91,17 @@ public interface PacketConnection {
 		 * Stored in bytes because many Stream write() functions
 		 * support only byte[] not int[] or short[].
 		 */
-		protected byte [] mData;
+		protected byte[] mData;
 		
 		/** This points to the element one past where data has been placed */
 		protected int mPosition = 0;
 		
+		/////
+		// Constructors
+		/////
+		
 		Packet (int size, boolean littleEndian) {
-			mData = new byte [size];
+			mData = new byte[size];
 			mLittleEndian = littleEndian;
 		}
 		
@@ -103,22 +109,17 @@ public interface PacketConnection {
 			this(size, true);
 		}
 		
-		
-		
 		Packet () {
 			this(DefMaxPacketSize, true);
 		}
 		
 		/**
-		 * Copy constructor, data buffer is a pointer to the
-		 * original packet - this is not a deep copy.
-		 * NB: this is probably bad practice, because the position
-		 * variable is independent between the two but the array is shared.
+		 * Copy constructor
 		 * @param pkt
 		 */
-		protected Packet (Packet pkt) {
+		protected Packet(Packet pkt) {
 			this.mLittleEndian= pkt.mLittleEndian;
-			this.mData = pkt.mData;
+			this.mData = pkt.mData.clone();
 			this.mPosition = pkt.mPosition;
 			this.mStartTime = pkt.mStartTime;
 			this.mEndTime = pkt.mEndTime;
@@ -130,44 +131,44 @@ public interface PacketConnection {
 		 * This allows caller to use their own buffer.
 		 * @param data
 		 */
-		public Packet(byte [] data) {
+		public Packet(byte[] data) {
 			mData = data;
 			mPosition = data.length;
 			mLittleEndian = true;
 		}
 		
-		public Packet(int[] data) {
-			// Allocate space for (length) ints of 4 bytes each
-			this(data.length * 4);
-			putIntArray(data, 0);
-		}
-		
-		public Packet(float[] data) {
-			this(4*data.length);
-			putFloatArray(data, 0);
-		}
-		
-		public int getDataLength() {
+		public int getDataPosition() {
 			return mPosition;
 		}
 		
 		public int getRemainingLength(int pos) {
-			int remainingLength = getDataLength() - pos;
+			int remainingLength = getDataPosition() - pos;
 			return remainingLength;
 		}
 		
 		public long getStartTime() {
 			return mStartTime;
 		}
+		
 		public long getEndTime() {
 			return mEndTime;
 		}
+		
 		public byte[] getData() {
 			return mData;
 		}
 		
-		public byte [] getUBytes (int pos, int amount) {
-			byte [] buf = new byte [amount];
+		public void setData(byte[] data) {
+			this.mData = data.clone();
+			this.mPosition = data.length;
+		}
+		
+		/////
+		// Bytes
+		/////
+		
+		public byte[] getUBytes(int pos, int amount) {
+			byte[] buf = new byte[amount];
 			for (int ii=0; ii < amount; ii++) {
 				buf[ii] = (byte) this.getUByte(pos+ii);
 			}
@@ -180,9 +181,11 @@ public interface PacketConnection {
 		 * @param newByte
 		 * @throws ArrayIndexOutOfBoundsException
 		 */
-		public void putByte(int newByte) throws ArrayIndexOutOfBoundsException {
-			mData[mPosition++]=(byte)(newByte&0xFF);
+		public void appendByte(int newByte) {
+			if (mPosition>mData.length-1) mData = enlarge_array(mData, 1);
+			mData[mPosition++]=(byte)(newByte&0xFF); 
 		}
+		
 		/**
 		 * 
 		 * @param newByte
@@ -191,13 +194,20 @@ public interface PacketConnection {
 		 */
 		public void putByte(int newByte, int pos) throws ArrayIndexOutOfBoundsException {
 			mData[pos]=(byte)(newByte&0xFF);
-			if (mPosition < (pos+1))
-				mPosition = pos+1;
 		}
 
 		public byte getByte(int pos){
 			return mData[pos];
 		}
+		
+		public byte popByte() throws ArrayIndexOutOfBoundsException {
+			return mData[mPosition++];
+		}
+		
+		
+		////
+		// Ubytes
+		////
 		
 		/**
 		 * 
@@ -208,6 +218,14 @@ public interface PacketConnection {
 		public int getUByte(int pos) throws ArrayIndexOutOfBoundsException {
 			return mData[pos] & 0xFF;
 		}
+		
+		public int popUByte() {
+			return getUByte(mPosition++);
+		}
+		
+		////
+		// Shorts
+		////
 
 		/**
 		 * 
@@ -244,10 +262,26 @@ public interface PacketConnection {
 				mPosition = pos+2;
 		}
 		
-		public void setData(byte[] data) {
-			this.mData = data;
-			this.mPosition = data.length;
+
+		/**
+		 * Returns a short signed integer composed of the 2 bytes
+		 * starting at {@value pos}.
+		 * 
+		 * @param pos
+		 * @return short signed integer
+		 */
+		public short getShort (int pos) {
+			int MSB = mLittleEndian ? pos+1:pos;
+			int LSB = mLittleEndian ? pos:pos+1;
+
+			return (short) ((((short)mData[MSB]) << 8) | ((short)mData[LSB]) & 0xff);
 		}
+
+		
+		
+		////
+		// UInts
+		////
 		
 		/**
 		 * Returns an unsigned integer comprised of the {@value size} bytes
@@ -291,6 +325,10 @@ public interface PacketConnection {
 			return getUInt(pos, 4);
 		}
 		
+		public long popUInt() {
+			return getUInt(mPosition);
+		}
+		
 		/**
 		 * Returns a signed long integer of the 8 bytes starting at pos.
 		 * @param pos
@@ -317,13 +355,17 @@ public interface PacketConnection {
 			return str;
 		}
 		
+		////
+		// Ints
+		////
+		
 		/**
-		 * Returns a signed integer composed of the 4 bytes,
+		 * Returns a signed integer composed of 4 bytes
 		 * starting at {@value pos}.
 		 * @param pos
 		 * @return signed integer
 		 */
-		public int getInt (int pos) {
+		public int getInt(int pos) throws ArrayIndexOutOfBoundsException {
 			int value = 0;
 			
 			for (int i = 0; i < 4; i++) {
@@ -336,27 +378,14 @@ public interface PacketConnection {
 			return value;
 		}
 
-		/**
-		 * Returns a short signed integer composed of the 2 bytes
-		 * starting at {@value pos}.
-		 * 
-		 * @param pos
-		 * @return short signed integer
-		 */
-		public short getShort (int pos) {
-			int MSB = mLittleEndian ? pos+1:pos;
-			int LSB = mLittleEndian ? pos:pos+1;
-
-			return (short) ((((short)mData[MSB]) << 8) | ((short)mData[LSB]) & 0xff);
-		}
 		
 		/**
 		 * Puts a signed integer of 4 bytes into the buffer.
 		 * @param pos
-		 * @return signed integer
 		 */
 		public void putInt (int value, int pos) {
 			final int count = 4;
+			if (pos+count>mData.length) mData = enlarge_array(mData, (pos+count)-mData.length);
 			for (int i = 0; i < count; i++) {
 				if (mLittleEndian) {
 					mData[pos+i] = (byte) ((value >>> (8 * i))&0xFF);
@@ -364,27 +393,23 @@ public interface PacketConnection {
 					mData[pos+i] = (byte) ((value >>> (8 * (count-i)))&0xFF);
 				}
 			}
-			if (mPosition < (pos+count))
-				mPosition = pos+count;
 		}
 		
-		public void putIntArray(int[] values, int pos) {
-			for (int i=0; i<values.length; i++) {
-				putInt(values[i], i*4);
-			}
+		public void appendInt(int value) {
+			putInt(value, mPosition);
+			mPosition+=4;
 		}
 		
-		/**
-		 * Puts an array of floats into the buffer, starting at position pos
-		 * @param values
-		 * @param pos
-		 */
-		public void putFloatArray(float[] values, int pos) {
-			for (int i=0; i<values.length; i++) {
-				putFloat(values[i], i*4);
-			}
+		public int popInt() {
+			int out = getInt(mPosition);
+			mPosition+=4;
+			return out;
 		}
 		
+		////
+		// Floats
+		////
+
 		/**
 		 * Puts a single float of 4 bytes into the buffer
 		 * @param value
@@ -396,70 +421,11 @@ public interface PacketConnection {
 			else bb.order(ByteOrder.BIG_ENDIAN);
 			bb.putFloat(value);
 			
+			if ((pos+4)>mData.length) mData = enlarge_array(mData, (pos+4)-mData.length);
+			
 			for (byte b: bb.array()) {
 				mData[pos++] = b;
 			}
-			
-			if (mPosition < pos) mPosition = pos;
-		
-		}
-		
-		/**
-		 * Reads the bytes between start- end endPos and decodes them into ints
-		 * @param startPos
-		 * @param endPos
-		 * @return An array of decoded ints
-		 */
-		public int[] getIntArray(int startPos, int endPos) {
-			if (endPos<startPos) {
-				throw new RuntimeException("endPos needs to be larger than startPos!");
-			} else if (((endPos-startPos)%4) != 0) {
-				throw new RuntimeException("The specified range does not contain a valid number of bytes");
-			} else {
-				int[] out = new int[(endPos-startPos)/4];
-				for (int i = 0; i<out.length; i++) {
-					out[i] = getInt(startPos+i*4);
-				}
-				return out;
-			}
-		}
-		
-		
-		/**
-		 * Reads all the bytes in this package and converts them into ints
-		 * @return An array of decoded ints
-		 */
-		public int[] getIntArray() {
-			return getIntArray(0, mPosition);
-		}
-		
-		
-		/**
-		 * Reads the bytes between start- end endPos and decodes them into floats
-		 * @param startPos
-		 * @param endPos
-		 * @return An array of decoded floats
-		 */
-		public float[] getFloatArray(int startPos, int endPos) {
-			if (endPos<startPos) {
-				throw new RuntimeException("endPos needs to be larger than startPos!");
-			} else if (((endPos-startPos)%4) != 0) {
-				throw new RuntimeException("The specified range does not contain a valid number of bytes");
-			} else {
-				float[] out = new float[(endPos-startPos)/4];
-				for (int i = 0; i<out.length; i++) {
-					out[i] = getFloat(startPos+i*4);
-				}
-				return out;
-			}
-		}
-		
-		/**
-		 * Reads all the bytes in this package and converts them into floats
-		 * @return An array of decoded floats
-		 */
-		public float[] getFloatArray() {
-			return getFloatArray(0, mPosition);
 		}
 		
 		/**
@@ -473,6 +439,106 @@ public interface PacketConnection {
 			else bb.order(ByteOrder.BIG_ENDIAN);
 			bb.put(mData);
 			return bb.getFloat(pos);
+		}
+		
+		public void appendFloat(float value) {
+			putFloat(value, mPosition);
+			mPosition+=4;
+		}
+		
+		public float popFloat() {
+			float out = getFloat(mPosition);
+			mPosition+=4;
+			return out;
+		}
+		
+		////
+		// Int arrays
+		////
+		
+		public void putIntArray(int[] values, int pos) {
+			// The enlarging would also be done for each int individually, 
+			// but this saves (a tiny bit) of time. 
+			if ((pos+4*values.length)>mData.length) mData = enlarge_array(mData, (pos+4*values.length)-mData.length);
+			
+			putInt(values.length, pos);
+			for (int i=0; i<values.length; i++) {
+				putInt(values[i], pos+4+i*4);
+			}
+		}
+		
+		/**
+		 * Reads the bytes between start- end endPos and decodes them into ints
+		 * @param startPos
+		 * @param endPos
+		 * @return An array of decoded ints
+		 */
+		public int[] getIntArray(int pos) {
+			int leng = getInt(pos);
+			int[] out = new int[leng];
+			
+			for (int i = 1; i<leng+1; i++) {
+				out[i] = getInt(pos+i*4);
+			}
+			
+			return out;
+		}
+		
+		public void appendIntArray(int[] values) {
+			putIntArray(values, mPosition);
+		}
+		
+		public int[] popIntArray() {
+			int leng = popInt();
+			int[] out = new int[leng];
+			for (int i = 0; i<leng; i++) {
+				out[i] = popInt();
+			}
+			return out;
+		}
+		
+		////
+		// Float arrays
+		////
+		
+		/**
+		 * Puts an array of floats into the buffer, starting at position pos
+		 * @param values
+		 * @param pos
+		 */
+		public void putFloatArray(float[] values, int pos) {
+			putInt(values.length, pos);
+			for (int i=0; i<values.length; i++) {
+				putFloat(values[i], pos+4+i*4);
+			}
+		}
+		
+		/**
+		 * Reads the bytes between start- end endPos and decodes them into floats
+		 * @param startPos
+		 * @param endPos
+		 * @return An array of decoded floats
+		 */
+		public float[] getFloatArray(int pos) {
+			int leng = getInt(pos);
+			float[] out = new float[leng];
+			for (int i=1; i<leng+1; i++) {
+				out[i] = getFloat(pos+i);
+			}
+			return out;
+		}
+		
+		public void appendFloatArray(float[] values) {
+			putFloatArray(values, mPosition);
+		}
+		
+		public float[] popFloatArray() {
+			int leng = popInt();
+			float[] out = new float[leng];
+			for (int i=0; i<leng; i++) {
+				out[i] = popFloat();
+			}
+			return out;
 		}
 		
 		 /**
@@ -492,12 +558,18 @@ public interface PacketConnection {
 			return packetEndMillis;
 		}
 		
+		public byte[] enlarge_array(byte[] in, int size) {
+			byte[] cop = new byte[in.length+size];
+			System.arraycopy(in, 0, cop, 0, in.length);
+			return cop;
+		}
+		
 		@Override
 		public String toString() {
 			//StringBuilder builder = new StringBuilder();
 			//builder.append("Packet ");
 			//builder.append(Utils.ByteArrayToHexa(mData, mPosition));
-			return Utils.ByteArrayToHexa(mData, mPosition);
+			return Utils.ByteArrayToHexa(mData, mData.length);
 		}
 	}
 	

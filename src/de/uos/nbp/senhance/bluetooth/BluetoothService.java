@@ -325,7 +325,7 @@ public class BluetoothService {
 				}
 
 				try {
-					System.out.println("ConnectThread: Trying to connect to...");
+					System.out.println("ConnectThread: Trying to connect...");
 					mmSocket.connect();
 					System.out.println("ConnectThread: connected");
 					connected = true;
@@ -417,6 +417,11 @@ public class BluetoothService {
 					mConnectedThread = null;
 					if (!mConnectionDeliberatelyClosed){
 						connectionLost(e.getLocalizedMessage());
+						// In case the autoconnect option has been specified, 
+						// directly try to reconnect. 
+						if (contiguousConnectionFailures==-1) {
+							connect(mDevice);
+						}
 					}
 					break;
 				}
