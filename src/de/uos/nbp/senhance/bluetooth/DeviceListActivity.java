@@ -156,16 +156,18 @@ public class DeviceListActivity extends Activity {
 			if (D)
 				Log.i(TAG, "DeviceListActivity|found "
 						+ pairedECGDevices.size() + " paired devices.");
+
+			/*
+			 * We want to automatically respond if there is only a single
+			 * device matching the filter.
+			 			
 			if (pairedECGDevices.size() == 1) {
 
-				/*
-				 * We want to automatically respond if there is only a single
-				 * device matching the filter.
-				 */
 				BluetoothDevice dev = pairedECGDevices.iterator().next();
 				String address = dev.getAddress();
 				finishWithSuccess(address);
 			} else {
+			*/
 				/*
 				 * if there are more than one appropriate device, add each one
 				 * to the ArrayAdapter
@@ -174,7 +176,7 @@ public class DeviceListActivity extends Activity {
 					mPairedDevicesArrayAdapter.add(device.getName() + "\n"
 							+ device.getAddress());
 				}
-			}
+			
 		} else {
 			String noDevices = getResources().getText(R.string.none_paired)
 					.toString();

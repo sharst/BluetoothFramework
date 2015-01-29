@@ -108,9 +108,13 @@ public class FramedPacketConnection extends BluetoothPacketConnection {
 				}
 				break;
 			case Incoming:
-				if (nextByte == mEscapeByte) {
+				if ((mEscapeByte!=-1) && (nextByte == mEscapeByte)) {
 					changeState(State.EscapeSequence);
-				} else if (nextByte == mEndByte) {
+				// There are two possibilities when a package can be closed: 
+				// 1.) We have a defined endByte and we encounter it here
+				// 2.) endByte is undefined, but we encounter the startByte again. 
+				} else if (((mEndByte != -1) && (nextByte == mEndByte)) ||
+				       ((mEndByte == -1) && (nextByte == mStartByte))) {
 					mPacket.mEndTime = System.currentTimeMillis();
 					mPacket.packetEndMillis = SystemClock.elapsedRealtime();
 					changeState(State.PacketReceived);
@@ -119,10 +123,10 @@ public class FramedPacketConnection extends BluetoothPacketConnection {
 								+Integer.toString(mPacket.getDataPosition()));
 						Log.v(TAG, " -> [" + Utils.ByteArrayToHexa(mPacket.mData, 0, mPacket.getDataPosition()) + "]");
 					}
-					
-				} else {
+				} else { 
 					mPacket.appendByte(nextByte);
 				}
+				
 				break;
 			case EscapeSequence:
 				if (mOctetStuffByte != -1) {
@@ -138,10 +142,17 @@ public class FramedPacketConnection extends BluetoothPacketConnection {
 				Packet receivedPacket = mPacket;
 				receivedPacket.mPosition = 0;
 				mConnHandler.packetReceived(receivedPacket);
-				mPacket = new Packet();
-				changeState(State.Ready);
-				
-				
+				mPacket = new Packet(mMaxPacketSize);
+				// In case there is no defined endByte, we wouldn't have gotten here
+				// if there hadn't been another packet onset. Therefore create new packet
+				// and change state to incoming. 
+				if (mEndByte == -1) {
+					mPacket.mStartTime = System.currentTimeMillis();
+					mPacket.packetStartMillis = SystemClock.elapsedRealtime();
+					changeState(State.Incoming);
+				} else {
+					changeState(State.Ready);
+				}
 			}
 //		} catch (ArrayIndexOutOfBoundsException e) {
 //			Log.e(TAG, "Packet arrived that was bigger than FramedPacketConnection buffer. Discarded.");

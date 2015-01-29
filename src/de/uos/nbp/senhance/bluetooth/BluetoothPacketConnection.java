@@ -100,7 +100,7 @@ public class BluetoothPacketConnection extends Handler implements PacketConnecti
 	}
 
 	protected void changeState(State newState) {
-		Log.v(TAG, "BluetoothConnection|"+mState+"->"+newState);
+		if (D) Log.v(TAG, "BluetoothConnection|"+mState+"->"+newState);
 		mState = newState;
 	}
 
@@ -219,7 +219,7 @@ public class BluetoothPacketConnection extends Handler implements PacketConnecti
 		mConnHandler.packetReceived(mPacket);
 		mPacket.mEndTime = System.currentTimeMillis();
 		mPacket.packetEndMillis = SystemClock.elapsedRealtime();
-		mPacket = new Packet();
+		mPacket = new Packet(mMaxPacketSize);
 	}
 	
 	private void handleConnectedMessage(Message msg) {

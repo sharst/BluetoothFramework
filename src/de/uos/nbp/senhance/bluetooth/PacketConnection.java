@@ -69,7 +69,7 @@ public interface PacketConnection {
 	
 	public class Packet {
 		/** only affects the getter functions. */
-		final boolean mLittleEndian;
+		protected boolean mLittleEndian;
 		
 		
 		/** time in milliseconds since Unix epoch of start of packet reception, in Android time */
@@ -144,6 +144,15 @@ public interface PacketConnection {
 		public int getRemainingLength(int pos) {
 			int remainingLength = getDataPosition() - pos;
 			return remainingLength;
+		}
+		
+		/**
+		 * Method to set the endianess of this packet. In general however, packets
+		 * should already be created with the correct endianess. 
+		 * @param littleEndian
+		 */
+		public void setEndianess(boolean littleEndian) {
+			this.mLittleEndian = littleEndian;
 		}
 		
 		public long getStartTime() {
@@ -235,11 +244,18 @@ public interface PacketConnection {
 		 */
 		public int getUShort(int pos) {
 			int ret;
+			/**
 			if (mLittleEndian) {
 				ret = (mData[pos]&0xFF)+((mData[pos+1]>>>8)&0xFF);
 			} else {
 				ret = (mData[pos+1]&0xFF)+((mData[pos]>>>8)&0xFF);
 			}
+		    */
+			ByteBuffer bb = ByteBuffer.allocate(2).put(mData[pos]).put(mData[pos+1]);
+			if (mLittleEndian) bb.order(ByteOrder.LITTLE_ENDIAN);
+			else bb.order(ByteOrder.BIG_ENDIAN);
+			short r = bb.getShort(0);
+			ret = r >= 0 ? r : 0x10000 + r;
 			return ret;
 		}
 		
@@ -262,6 +278,12 @@ public interface PacketConnection {
 				mPosition = pos+2;
 		}
 		
+		public int popUShort() {
+			int out = getUShort(mPosition);
+			mPosition += 2;
+			return out;
+		}
+		
 
 		/**
 		 * Returns a short signed integer composed of the 2 bytes
@@ -276,7 +298,67 @@ public interface PacketConnection {
 
 			return (short) ((((short)mData[MSB]) << 8) | ((short)mData[LSB]) & 0xff);
 		}
+		
+		
+		////
+		// Strings
+		////
 
+		public String getString(int pos) {
+			int len = getInt(pos);
+			
+			ByteBuffer bb = ByteBuffer.allocate(len);
+			if (mLittleEndian) bb.order(ByteOrder.LITTLE_ENDIAN);
+			else bb.order(ByteOrder.BIG_ENDIAN);
+			
+			for (int i=0; i<len; i++) {
+				bb.put(mData[pos+4+i]);
+			}
+			
+			String out = "";
+			for (int i=0; i<len; i+=2) {
+				out+=bb.getChar(i);
+			}
+			
+			return out;
+		}
+		
+		public void putString(String st, int pos) {
+			int len = st.length();
+			
+			if (pos+len+4>mData.length) mData = enlarge_array(mData, (pos+len+4)-mData.length);
+			ByteBuffer bb = ByteBuffer.allocate(len + 1);
+			
+			if (mLittleEndian) bb.order(ByteOrder.LITTLE_ENDIAN);
+			else bb.order(ByteOrder.BIG_ENDIAN);
+			
+			for (int i=0; i<len; i++) {
+				// A char in java is normally 2 bytes long. The following way,
+				// the second byte gets overwritten except for the last one.
+				bb.putChar(i, st.charAt(i));  
+			}
+			
+			putInt(len, pos);
+			pos+=4;
+			
+			for (int i = 0; i < bb.array().length - 1; i++) {
+				mData[pos+i] = bb.array()[i];
+			}
+		}
+		
+		public void appendString(String st) {
+			putString(st, mPosition);
+			mPosition+=4; // String length indicator (int)
+			mPosition+=st.length()*2; // Each string char has 2 bytes.
+		}
+		
+		public String popString() {
+			String out = getString(mPosition);
+			mPosition+=4;
+			mPosition+=out.length()*2;
+			return out;
+		}
+		
 		
 		
 		////
@@ -326,7 +408,9 @@ public interface PacketConnection {
 		}
 		
 		public long popUInt() {
-			return getUInt(mPosition);
+			long out = getUInt(mPosition);
+			mPosition+=4;
+			return out;
 		}
 		
 		/**
@@ -453,6 +537,52 @@ public interface PacketConnection {
 		}
 		
 		////
+		// Doubles
+		////
+
+		/**
+		 * Puts a single double of 8 bytes into the buffer
+		 * @param value
+		 * @param pos
+		 */
+		public void putDouble(double value, int pos) {
+			ByteBuffer bb = ByteBuffer.allocate(8);
+			if (mLittleEndian) bb.order(ByteOrder.LITTLE_ENDIAN);
+			else bb.order(ByteOrder.BIG_ENDIAN);
+			bb.putDouble(value);
+			
+			if ((pos+8)>mData.length) mData = enlarge_array(mData, (pos+8)-mData.length);
+			
+			for (byte b: bb.array()) {
+				mData[pos++] = b;
+			}
+		}
+		
+		/**
+		 * Decodes 8 bytes starting at position pos into a double
+		 * @param pos
+		 * @return
+		 */
+		public double getDouble(int pos) {
+			ByteBuffer bb = ByteBuffer.allocate(mData.length);
+			if (mLittleEndian) bb.order(ByteOrder.LITTLE_ENDIAN);
+			else bb.order(ByteOrder.BIG_ENDIAN);
+			bb.put(mData);
+			return bb.getDouble(pos);
+		}
+		
+		public void appendDouble(double value) {
+			putDouble(value, mPosition);
+			mPosition+=8;
+		}
+		
+		public double popDouble() {
+			double out = getDouble(mPosition);
+			mPosition+=8;
+			return out;
+		}
+		
+		////
 		// Int arrays
 		////
 		
@@ -530,6 +660,8 @@ public interface PacketConnection {
 		
 		public void appendFloatArray(float[] values) {
 			putFloatArray(values, mPosition);
+			mPosition += 4; // Length indicator (4 bytes)
+			mPosition += 4 * values.length;
 		}
 		
 		public float[] popFloatArray() {
